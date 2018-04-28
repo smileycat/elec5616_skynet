@@ -1,3 +1,4 @@
+import secrets
 from Crypto.Hash import SHA256
 from Crypto.Random import random
 
@@ -23,12 +24,17 @@ prime = read_hex(raw_prime)
 def create_dh_key():
     # Creates a Diffie-Hellman key
     # Returns (public, private)
-    a = random.randint(0, int(2**8))
-    return (a, a)
+    g = 2;
+    private = secrets.randbelow(prime)
+    
+    # public = g^a mod p
+    public = pow(g, private, prime)
+
+    return (public, private)
 
 def calculate_dh_secret(their_public, my_private):
     # Calculate the shared secret
-    shared_secret = their_public * my_private
+    shared_secret = pow(their_public, my_private, prime)
 
     # Hash the value so that:
     # (a) There's no bias in the bits of the output

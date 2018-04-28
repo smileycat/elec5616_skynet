@@ -24,6 +24,11 @@ class StealthConn(object):
             self.send(bytes(str(my_public_key), "ascii"))
             # Receive their public key
             their_public_key = int(self.recv())
+            
+            print('my public key: ', my_public_key)
+            print('my private key: ', my_private_key)
+            print('their public key: ', their_public_key)
+            
             # Obtain our shared secret
             shared_hash = calculate_dh_secret(their_public_key, my_private_key)
             print("Shared hash: {}".format(shared_hash))
