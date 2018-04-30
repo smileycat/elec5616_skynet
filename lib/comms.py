@@ -1,8 +1,12 @@
 import struct
 
-from Crypto.Cipher import XOR
+from Crypto.Cipher import AES
 
 from dh import create_dh_key, calculate_dh_secret
+
+BLOCK_SIZE = 16  # Bytes
+pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE) 
+unpad = lambda s : s[:-ord(s[len(s)-1:])]
 
 class StealthConn(object):
     def __init__(self, conn, client=False, server=False, verbose=False):
@@ -11,6 +15,7 @@ class StealthConn(object):
         self.client = client
         self.server = server
         self.verbose = verbose
+        self.shared_hash = ""
         self.initiate_session()
 
     def initiate_session(self):
@@ -27,18 +32,19 @@ class StealthConn(object):
             
             if self.verbose:
                 print('my public key: ', my_public_key)
-                print('my private key: ', my_private_key)
                 print('their public key: ', their_public_key)
+                print('my private key: ', my_private_key)
             
             # Obtain our shared secret
-            shared_hash = calculate_dh_secret(their_public_key, my_private_key)
-            print("Shared hash: {}".format(shared_hash))
+            self.shared_hash = calculate_dh_secret(their_public_key, my_private_key)
+            print("Shared hash: {}".format(self.shared_hash))
 
         # Default XOR algorithm can only take a key of length 32
-        self.cipher = XOR.new(shared_hash[:4])
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
 
     def send(self, data):
         if self.cipher:
+            data = pad(str(data))
             encrypted_data = self.cipher.encrypt(data)
             if self.verbose:
                 print("Original data: {}".format(data))
@@ -60,7 +66,10 @@ class StealthConn(object):
 
         encrypted_data = self.conn.recv(pkt_len)
         if self.cipher:
-            data = self.cipher.decrypt(encrypted_data)
+            print(self.shared_hash)
+            second_cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
+            data = second_cipher.decrypt(encrypted_data)
+            data = unpad(data)
             if self.verbose:
                 print("Receiving packet of length {}".format(pkt_len))
                 print("Encrypted data: {}".format(repr(encrypted_data)))
