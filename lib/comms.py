@@ -1,10 +1,14 @@
 import struct
+import base64
 
-from Crypto.Cipher import XOR
+
 from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
+from Crypto.Cipher import AES
 
 from dh import create_dh_key, calculate_dh_secret
+
+BLOCK_SIZE = 16  # Bytes
 
 class StealthConn(object):
     def __init__(self, conn, client=False, server=False, verbose=False):
@@ -15,6 +19,12 @@ class StealthConn(object):
         self.verbose = verbose
         self.shared_hash = ""
         self.initiate_session()
+ 
+    def unpad(self, s):
+        return s[ :-ord( s[ len(s)-1 : ] ) ]
+ 
+    def pad(self,s):
+        return s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE)
 
     def initiate_session(self):
         # Perform the initial connection handshake for agreeing on a shared secret 
@@ -30,19 +40,19 @@ class StealthConn(object):
             
             if self.verbose:
                 print('my public key: ', my_public_key)
-                print('my private key: ', my_private_key)
                 print('their public key: ', their_public_key)
+                print('my private key: ', my_private_key)
             
             # Obtain our shared secret
             self.shared_hash = calculate_dh_secret(their_public_key, my_private_key)
             print("Shared hash: {}".format(self.shared_hash))
 
-        # Default XOR algorithm can only take a key of length 32
-        self.cipher = XOR.new(self.shared_hash[:4])
+        #using AES for ciphering, using the last 16 bytes from the shared_hash as key and the first 16 bytes as IV
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
 
     def send(self, data):
         if self.cipher:
-            encrypted_data = self.cipher.encrypt(data)
+            encrypted_data = self.encrypt(data)
             if self.verbose:
                 print("Original data: {}".format(data))
                 print("Encrypted data: {}".format(repr(encrypted_data)))
@@ -55,15 +65,26 @@ class StealthConn(object):
         self.conn.sendall(pkt_len)
         self.conn.sendall(encrypted_data)
 
+    #encprytion function, used to encrypt data via AES, 
+    #it first pads the data to be a multiple of 16 bytes and is then used in AES
+    #after the AES cipher, it encodes the value in base64
+    def encrypt(self, data):
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
+        data_padded = self.pad(str(data))
+        return base64.b64encode(self.cipher.encrypt(data_padded) )
+
     def recv(self):
         # Decode the data's length from an unsigned two byte int ('H')
         pkt_len_packed = self.conn.recv(struct.calcsize('H'))
         unpacked_contents = struct.unpack('H', pkt_len_packed)
         pkt_len = unpacked_contents[0]
 
-        encrypted_data = self.conn.recv(pkt_len)
+        encrypted_data = (self.conn.recv(pkt_len))
         if self.cipher:
-            data = self.cipher.decrypt(encrypted_data)
+
+            data = self.decrypt(encrypted_data)
+            data = data.decode('utf-8')
+
             if self.verbose:
                 print("Receiving packet of length {}".format(pkt_len))
                 print("Encrypted data: {}".format(repr(encrypted_data)))
@@ -72,6 +93,7 @@ class StealthConn(object):
             data = encrypted_data
 
         return data
+
 
     def hmac_append(self, msg):
         # Append HMAC to the message before sending.
@@ -92,5 +114,17 @@ class StealthConn(object):
         length = len(self.shared_hash)
         return msg[:-length]
 
+    # Decryption function used to decrypt incoming msg. 
+    # The msg is first decoded from base64 into the AES cipher value
+    # After it's decrypted and the value returned is sent to unpad() function to remove the padding.
+    def decrypt(self, data):
+        data = base64.b64decode(data)
+
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
+        decrypted_data = self.cipher.decrypt(data)
+
+        unpadded_data = self.unpad(decrypted_data)
+        return unpadded_data
+        
     def close(self):
         self.conn.close()

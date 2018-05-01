@@ -1,7 +1,5 @@
 from Crypto.Hash import SHA256
-from Crypto.Random import random
 from random import SystemRandom
-
 from lib.helpers import read_hex
 
 # Project TODO: Is this the best choice of prime? Why? Why not? Feel free to replacasddsae!
@@ -34,14 +32,15 @@ def create_dh_key():
     # Returns (public, private) = (x, y)
     # Satisfies the condition private key = [2, q-2], given q >= 160-bit
     # generator = 2 in the 1536-bit group
-    g = 2;
     cryptogen = SystemRandom()
-    x = 2 + cryptogen.randrange(prime-3)
+    g = 2;
+    private_key = 2 + cryptogen.randrange(prime-3)
+
     
     # Public key = g^a mod p
-    y = pow(g, x, prime)
+    public_key = pow(g, private_key, prime)
 
-    return (y, x)
+    return (public_key, private_key)
 
 def calculate_dh_secret(their_public, my_private):
     # Calculate the shared secret and prepend leading zeros

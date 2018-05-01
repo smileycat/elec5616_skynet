@@ -31,12 +31,16 @@ def p2p_echo():
             # This other bot should echo it back to us
             echo = sconn.recv()
             # Ensure that what we sent is what we got back
+<<<<<<< HEAD
             # If it's not there's likely a warning of invalid MAC
             if echo != byte_msg:
                 if echo == b'MAC Invalid':
                     print("Warning! MAC Invalid, the message you sent might be tempered with someone else")
                 else:
                     assert(echo == byte_msg)
+=======
+            assert(str(echo) == str(byte_msg))
+>>>>>>> Temp-NoPRNG
             # If the msg is X, then terminate the connection
             if msg.lower() == 'x' or msg.lower() == "exit" or msg.lower() == "quit":
                 sconn.close()
