@@ -31,9 +31,9 @@ def echo_server(sconn):
         data = sconn.recv()
         # Check if the message has been tempered with attacker
         # by verifying with the HMAC append to the message
-        if sconn.hmac_isValid(str(data, "ascii")) == False:
+        if sconn.hmac_isValid(data.encode('ascii')) == False:
             sconn.send(b'MAC Invalid')
-            return
+            continue
     
         sconn.send(data)
         # Remove the HMAC in the message before display in console
@@ -46,7 +46,7 @@ def echo_server(sconn):
 
 def accept_connection(conn):
     try:
-        sconn = StealthConn(conn, server=True,)
+        sconn = StealthConn(conn, server=True, verbose=True)
         # The sender is either going to chat to us or send a file
         cmd = sconn.recv()
         if str(cmd) == str(b'ECHO'):

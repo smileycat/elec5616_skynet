@@ -106,7 +106,11 @@ class StealthConn(object):
         # hashing the message and compare with the HMAC appended
         length = len(self.shared_hash)
         hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256)
-        hmac.update(msg[:-length].encode("ascii"))
+        msg_len = len(msg) - length
+        print(length)
+        print(msg_len)
+        hmac.update(str( msg[: msg_len]).encode("ascii"))
+        print(hmac.hexdigest())
         return hmac.hexdigest() == msg[-length:]
 
     def hmac_remove(self, msg):
@@ -125,6 +129,6 @@ class StealthConn(object):
 
         unpadded_data = self.unpad(decrypted_data)
         return unpadded_data
-        
+
     def close(self):
         self.conn.close()
