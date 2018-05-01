@@ -12,7 +12,6 @@ def find_bot():
     print("Finding another bot...")
     port = 1337
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #conn.setblocking(0)
     while 1:
         if port == server_port:
             # Don't connect to yourself, silly bot!
@@ -39,10 +38,9 @@ def echo_server(sconn):
 
 def accept_connection(conn):
     try:
-        sconn = StealthConn(conn, server=True, verbose=True)
+        sconn = StealthConn(conn, server=True,)
         # The sender is either going to chat to us or send a file
         cmd = sconn.recv()
-        print(str(cmd) == str(b'ECHO'))
         if str(cmd) == str(b'ECHO'):
             echo_server(sconn)
         elif cmd == b'FILE':

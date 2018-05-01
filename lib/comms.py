@@ -6,8 +6,6 @@ from Crypto.Cipher import AES
 from dh import create_dh_key, calculate_dh_secret
 
 BLOCK_SIZE = 16  # Bytes
-pad = lambda s: s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE) 
-unpad = lambda s : s[:-ord(s[len(s)-1:])]
 
 class StealthConn(object):
     def __init__(self, conn, client=False, server=False, verbose=False):
@@ -18,6 +16,12 @@ class StealthConn(object):
         self.verbose = verbose
         self.shared_hash = ""
         self.initiate_session()
+ 
+    def unpad(self, s):
+        return s[ :-ord( s[ len(s)-1 : ] ) ]
+ 
+    def pad(self,s):
+        return s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE)
 
     def initiate_session(self):
         # Perform the initial connection handshake for agreeing on a shared secret 
@@ -40,7 +44,7 @@ class StealthConn(object):
             self.shared_hash = calculate_dh_secret(their_public_key, my_private_key)
             print("Shared hash: {}".format(self.shared_hash))
 
-        # Default XOR algorithm can only take a key of length 32
+        #using AES for ciphering, using the last 16 bytes from the shared_hash as key and the first 16 bytes as IV
         self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
 
     def send(self, data):
@@ -58,9 +62,12 @@ class StealthConn(object):
         self.conn.sendall(pkt_len)
         self.conn.sendall(encrypted_data)
 
+    #encprytion function, used to encrypt data via AES, 
+    #it first pads the data to be a multiple of 16 bytes and is then used in AES
+    #after the AES cipher, it encodes the value in base64
     def encrypt(self, data):
-        #data = pad(str(data))
-        data_padded = pad(str(data))
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
+        data_padded = self.pad(str(data))
         return base64.b64encode(self.cipher.encrypt(data_padded) )
 
     def recv(self):
@@ -70,14 +77,10 @@ class StealthConn(object):
         pkt_len = unpacked_contents[0]
 
         encrypted_data = (self.conn.recv(pkt_len))
-        print(pkt_len)
         if self.cipher:
-            #second_cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
-            print("shared_hash: "+ self.shared_hash)
+
             data = self.decrypt(encrypted_data)
-            print(data)
             data = data.decode('utf-8')
-            #data = unpad(data.decode('ascii'))
 
             if self.verbose:
                 print("Receiving packet of length {}".format(pkt_len))
@@ -86,19 +89,18 @@ class StealthConn(object):
         else:
             data = encrypted_data
 
-        print("Ending recv(), data: " + str(data))
         return data
 
-    def decrypt(self, encrypted_data):
-        data = encrypted_data
-        print("--------------")
-        print(data)
-        print("in decrypt, data: " + str(data))
+    # Decryption function used to decrypt incoming msg. 
+    # The msg is first decoded from base64 into the AES cipher value
+    # After it's decrypted and the value returned is sent to unpad() function to remove the padding.
+    def decrypt(self, data):
         data = base64.b64decode(data)
-        print("in decrypt, Base64 data: " + str(data))
-        second_cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
-        unpadded_data = unpad(second_cipher.decrypt( data))
-        print("in decrypt, Unpadded data: " + str(unpadded_data))
+
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
+        decrypted_data = self.cipher.decrypt(data)
+
+        unpadded_data = self.unpad(decrypted_data)
         return unpadded_data
     
     def close(self):

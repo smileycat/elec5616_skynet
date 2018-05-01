@@ -24,15 +24,12 @@ def p2p_echo():
         while 1:
             # Read a message and send it to the other bot
             msg = input("Echo> ")
-            print("bt.py msg = msg")
-            byte_msg = bytes("msg", "ascii")
-            print(byte_msg)
+            byte_msg = bytes(msg, "ascii")
             sconn.send(byte_msg)
             # This other bot should echo it back to us
             echo = sconn.recv()
-            print(echo)
             # Ensure that what we sent is what we got back
-            assert(echo == byte_msg)
+            assert(str(echo) == str(byte_msg))
             # If the msg is X, then terminate the connection
             if msg.lower() == 'x' or msg.lower() == "exit" or msg.lower() == "quit":
                 sconn.close()
