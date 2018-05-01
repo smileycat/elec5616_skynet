@@ -10,7 +10,7 @@ server_port = 1337
 
 def find_bot():
     print("Finding another bot...")
-    port = 1338
+    port = 1337
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while 1:
         if port == server_port:
@@ -29,8 +29,17 @@ def find_bot():
 def echo_server(sconn):
     while 1:
         data = sconn.recv()
-        print("ECHOING>", data)
+        # Check if the message has been tempered with attacker
+        # by verifying with the HMAC append to the message
+        if sconn.hmac_isValid(str(data, "ascii")) == False:
+            sconn.send(b'MAC Invalid')
+            return
+    
         sconn.send(data)
+        # Remove the HMAC in the message before display in console
+        data = sconn.hmac_remove(data)
+        print("ECHOING>", data)
+        
         if data == b'X' or data == b'exit' or data == b'quit':
             print("Closing connection...")
             sconn.close()

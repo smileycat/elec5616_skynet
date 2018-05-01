@@ -24,15 +24,19 @@ def p2p_echo():
         while 1:
             # Read a message and send it to the other bot
             msg = input("Echo> ")
-            # Append a hmac to the message
-            msg = sconn.hmac_append(msg)
-            
-            byte_msg = bytes(msg, "ascii")
+            # Append a hmac to the message and convert to bytes
+            byte_msg = bytes(sconn.hmac_append(msg), "ascii")
+
             sconn.send(byte_msg)
             # This other bot should echo it back to us
             echo = sconn.recv()
             # Ensure that what we sent is what we got back
-            assert(echo == byte_msg)
+            # If it's not there's likely a warning of invalid MAC
+            if echo != byte_msg:
+                if echo == b'MAC Invalid':
+                    print("Warning! MAC Invalid, the message you sent might be tempered with someone else")
+                else:
+                    assert(echo == byte_msg)
             # If the msg is X, then terminate the connection
             if msg.lower() == 'x' or msg.lower() == "exit" or msg.lower() == "quit":
                 sconn.close()

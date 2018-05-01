@@ -74,12 +74,23 @@ class StealthConn(object):
         return data
 
     def hmac_append(self, msg):
-        hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256) # used .encode('ascii') to fix the problem
-        hmac.update(msg.encode("ascii")) # used .encode('ascii') to fix the problem
+        # Append HMAC to the message before sending.
+        hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256)
+        hmac.update(msg.encode("ascii"))
         return (msg + hmac.hexdigest())
 
-    #def hmac_check(self):
+    def hmac_isValid(self, msg):
+        # Check if the received message is valid by
+        # hashing the message and compare with the HMAC appended
+        length = len(self.shared_hash)
+        hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256)
+        hmac.update(msg[:-length].encode("ascii"))
+        return hmac.hexdigest() == msg[-length:]
 
+    def hmac_remove(self, msg):
+        # Remove the HMAC appended to the end of the message
+        length = len(self.shared_hash)
+        return msg[:-length]
 
     def close(self):
         self.conn.close()
