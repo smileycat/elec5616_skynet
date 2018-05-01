@@ -74,8 +74,8 @@ class StealthConn(object):
         return data
 
     def hmac_append(self, msg):
-        hmac = HMAC.new(bytes(self.shared_hash), digestmod=SHA256)
-        hmac.update(msg)
+        hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256) # used .encode('ascii') to fix the problem
+        hmac.update(msg.encode("ascii")) # used .encode('ascii') to fix the problem
         return (msg + hmac.hexdigest())
 
     #def hmac_check(self):
