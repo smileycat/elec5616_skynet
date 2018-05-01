@@ -1,4 +1,5 @@
 import struct
+import base64
 
 from Crypto.Cipher import AES
 
@@ -44,8 +45,7 @@ class StealthConn(object):
 
     def send(self, data):
         if self.cipher:
-            data = pad(str(data))
-            encrypted_data = self.cipher.encrypt(data)
+            encrypted_data = self.encrypt(data)
             if self.verbose:
                 print("Original data: {}".format(data))
                 print("Encrypted data: {}".format(repr(encrypted_data)))
@@ -58,18 +58,27 @@ class StealthConn(object):
         self.conn.sendall(pkt_len)
         self.conn.sendall(encrypted_data)
 
+    def encrypt(self, data):
+        #data = pad(str(data))
+        data_padded = pad(str(data))
+        return base64.b64encode(self.cipher.encrypt(data_padded) )
+
     def recv(self):
         # Decode the data's length from an unsigned two byte int ('H')
         pkt_len_packed = self.conn.recv(struct.calcsize('H'))
         unpacked_contents = struct.unpack('H', pkt_len_packed)
         pkt_len = unpacked_contents[0]
 
-        encrypted_data = self.conn.recv(pkt_len)
+        encrypted_data = (self.conn.recv(pkt_len))
+        print(pkt_len)
         if self.cipher:
-            print(self.shared_hash)
-            second_cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
-            data = second_cipher.decrypt(encrypted_data)
-            data = unpad(data)
+            #second_cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
+            print("shared_hash: "+ self.shared_hash)
+            data = self.decrypt(encrypted_data)
+            print(data)
+            data = data.decode('utf-8')
+            #data = unpad(data.decode('ascii'))
+
             if self.verbose:
                 print("Receiving packet of length {}".format(pkt_len))
                 print("Encrypted data: {}".format(repr(encrypted_data)))
@@ -77,7 +86,20 @@ class StealthConn(object):
         else:
             data = encrypted_data
 
+        print("Ending recv(), data: " + str(data))
         return data
 
+    def decrypt(self, encrypted_data):
+        data = encrypted_data
+        print("--------------")
+        print(data)
+        print("in decrypt, data: " + str(data))
+        data = base64.b64decode(data)
+        print("in decrypt, Base64 data: " + str(data))
+        second_cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
+        unpadded_data = unpad(second_cipher.decrypt( data))
+        print("in decrypt, Unpadded data: " + str(unpadded_data))
+        return unpadded_data
+    
     def close(self):
         self.conn.close()
