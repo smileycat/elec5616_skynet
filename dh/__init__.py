@@ -1,6 +1,6 @@
-import secrets
 from Crypto.Hash import SHA256
 from Crypto.Random import random
+from random import SystemRandom
 
 from lib.helpers import read_hex
 
@@ -35,7 +35,8 @@ def create_dh_key():
     # Satisfies the condition private key = [2, q-2], given q >= 160-bit
     # generator = 2 in the 1536-bit group
     g = 2;
-    x = 2 + secrets.randbelow(prime-3)
+    cryptogen = SystemRandom()
+    x = 2 + cryptogen.randrange(prime-3)
     
     # Public key = g^a mod p
     y = pow(g, x, prime)
