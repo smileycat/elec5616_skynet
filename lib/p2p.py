@@ -20,7 +20,7 @@ def find_bot():
             try:
                 print("Found bot on port %d" % port)
                 conn.connect(("localhost", port))
-                sconn = StealthConn(conn, client=True,verbose=True)
+                sconn = StealthConn(conn, client=True,verbose=False)
                 return sconn
             except socket.error:
                 print("No bot was listening on port %d" % port)
@@ -39,14 +39,14 @@ def echo_server(sconn):
         # Remove the HMAC in the message before display in console
         data = sconn.hmac_remove(data)
         print("ECHOING>", data)
-        if str(data) == str(b'X') or str(data) == str(b'exit') or str(data) == str(b'quit'):
+        if str(data) == str(b'x') or str(data) == str(b'exit') or str(data) == str(b'quit'):
             print("Closing connection...")
             sconn.close()
             return
 
 def accept_connection(conn):
     try:
-        sconn = StealthConn(conn, server=True, verbose=True)
+        sconn = StealthConn(conn, server=True, verbose=False)
         # The sender is either going to chat to us or send a file
         cmd = sconn.recv()
         if str(cmd) == str(b'ECHO'):

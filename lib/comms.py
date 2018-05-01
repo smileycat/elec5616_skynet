@@ -28,9 +28,6 @@ class StealthConn(object):
 
     def initiate_session(self):
         # Perform the initial connection handshake for agreeing on a shared secret 
-
-        ### TODO: Your code here!
-        # This can be broken into code run just on the server or just on the clientasdsad
         if self.server or self.client:
             my_public_key, my_private_key = create_dh_key()
             # Send them our public key
@@ -106,17 +103,17 @@ class StealthConn(object):
         # hashing the message and compare with the HMAC appended
         length = len(self.shared_hash)
         hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256)
-        msg_len = len(msg) - length
-        print(length)
-        print(msg_len)
-        hmac.update(str( msg[: msg_len]).encode("ascii"))
-        print(hmac.hexdigest())
-        return hmac.hexdigest() == msg[-length:]
+        msg_len = len(msg) - length - 1
+        mesage = (msg[2: msg_len]).decode('utf-8')
+        hmac.update(mesage.encode('ascii'))
+        str_hmac = hmac.hexdigest()
+        str_msg =  msg[-(length+1):len(msg)-1].decode('ascii')
+        return str_hmac == str_msg
 
     def hmac_remove(self, msg):
         # Remove the HMAC appended to the end of the message
         length = len(self.shared_hash)
-        return msg[:-length]
+        return str(msg[:-(length+1)]) + "'"
 
     # Decryption function used to decrypt incoming msg. 
     # The msg is first decoded from base64 into the AES cipher value
