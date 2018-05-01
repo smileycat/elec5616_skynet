@@ -24,6 +24,9 @@ def p2p_echo():
         while 1:
             # Read a message and send it to the other bot
             msg = input("Echo> ")
+            # Append a hmac to the message
+            msg = sconn.hmac_append(msg)
+            
             byte_msg = bytes(msg, "ascii")
             sconn.send(byte_msg)
             # This other bot should echo it back to us

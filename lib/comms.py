@@ -1,6 +1,8 @@
 import struct
 
 from Crypto.Cipher import XOR
+from Crypto.Hash import HMAC
+from Crypto.Hash import SHA256
 
 from dh import create_dh_key, calculate_dh_secret
 
@@ -11,6 +13,7 @@ class StealthConn(object):
         self.client = client
         self.server = server
         self.verbose = verbose
+        self.shared_hash = ""
         self.initiate_session()
 
     def initiate_session(self):
@@ -31,11 +34,11 @@ class StealthConn(object):
                 print('their public key: ', their_public_key)
             
             # Obtain our shared secret
-            shared_hash = calculate_dh_secret(their_public_key, my_private_key)
-            print("Shared hash: {}".format(shared_hash))
+            self.shared_hash = calculate_dh_secret(their_public_key, my_private_key)
+            print("Shared hash: {}".format(self.shared_hash))
 
         # Default XOR algorithm can only take a key of length 32
-        self.cipher = XOR.new(shared_hash[:4])
+        self.cipher = XOR.new(self.shared_hash[:4])
 
     def send(self, data):
         if self.cipher:
@@ -69,6 +72,14 @@ class StealthConn(object):
             data = encrypted_data
 
         return data
+
+    def hmac_append(self, msg):
+        hmac = HMAC.new(bytes(self.shared_hash), digestmod=SHA256)
+        hmac.update(msg)
+        return (msg + hmac.hexdigest())
+
+    #def hmac_check(self):
+
 
     def close(self):
         self.conn.close()

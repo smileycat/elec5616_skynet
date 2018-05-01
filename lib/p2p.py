@@ -10,7 +10,7 @@ server_port = 1337
 
 def find_bot():
     print("Finding another bot...")
-    port = 1337
+    port = 1338
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while 1:
         if port == server_port:
