@@ -35,7 +35,7 @@ def echo_server(sconn):
             sconn.send(b'MAC Invalid')
             continue
     
-        sconn.send(data)
+        sconn.send(data.encode())
         # Remove the HMAC in the message before display in console
         data = sconn.hmac_remove(data)
         print("ECHOING>", data)
@@ -49,9 +49,9 @@ def accept_connection(conn):
         sconn = StealthConn(conn, server=True, verbose=False)
         # The sender is either going to chat to us or send a file
         cmd = sconn.recv()
-        if str(cmd) == str(b'ECHO'):
+        if str(cmd) == 'ECHO':
             echo_server(sconn)
-        elif cmd == b'FILE':
+        elif cmd == 'FILE':
             p2p_download_file(sconn)
     except socket.error:
         print("Connection closed unexpectedly")

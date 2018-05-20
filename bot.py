@@ -32,9 +32,9 @@ def p2p_echo():
             echo = sconn.recv()
             # Ensure that what we sent is what we got back
             # If it's not there's likely a warning of invalid MAC
-            if str(echo) == str(b'MAC Invalid'):
+            if echo == 'MAC Invalid':
                 print("Warning! MAC Invalid, the message you sent might be tempered with someone else")
-            elif(str(echo) != str(byte_msg)):
+            elif(echo.encode() != (byte_msg)):
                 print("Incorrect reply received.")
 
             # If the msg is X, then terminate the connection

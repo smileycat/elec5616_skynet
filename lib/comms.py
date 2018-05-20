@@ -5,6 +5,7 @@ import base64
 from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
 from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
 
 from dh import create_dh_key, calculate_dh_secret
 
@@ -20,11 +21,11 @@ class StealthConn(object):
         self.shared_hash = ""
         self.initiate_session()
  
-    def unpad(self, s):
-        return s[ :-ord( s[ len(s)-1 : ] ) ]
+    #def unpad(self, s):
+    #    return s[ :-ord( s[ len(s)-1 : ] ) ]
  
-    def pad(self,s):
-        return s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE)
+    ##def pad(self,s):
+    #    return s + (BLOCK_SIZE - len(s) % BLOCK_SIZE) * chr(BLOCK_SIZE - len(s) % BLOCK_SIZE)
 
     def initiate_session(self):
         # Perform the initial connection handshake for agreeing on a shared secret 
@@ -45,7 +46,7 @@ class StealthConn(object):
             print("Shared hash: {}".format(self.shared_hash))
 
         #using AES for ciphering, using the last 16 bytes from the shared_hash as key and the first 16 bytes as IV
-        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :].encode() , AES.MODE_CBC , self.shared_hash[:16].encode() )
 
     def send(self, data):
         if self.cipher:
@@ -66,8 +67,8 @@ class StealthConn(object):
     #it first pads the data to be a multiple of 16 bytes and is then used in AES
     #after the AES cipher, it encodes the value in base64
     def encrypt(self, data):
-        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :] , AES.MODE_CBC , self.shared_hash[:16] )
-        data_padded = self.pad(str(data))
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :].encode() , AES.MODE_CBC , self.shared_hash[:16].encode() )
+        data_padded = pad(data,self.cipher.block_size)
         return base64.b64encode(self.cipher.encrypt(data_padded) )
 
     def recv(self):
@@ -103,17 +104,17 @@ class StealthConn(object):
         # hashing the message and compare with the HMAC appended
         length = len(self.shared_hash)
         hmac = HMAC.new(self.shared_hash.encode("ascii"), digestmod=SHA256)
-        msg_len = len(msg) - length - 1
-        mesage = (msg[2: msg_len]).decode('utf-8')
-        hmac.update(mesage.encode('ascii'))
+        msg_len = len(msg) - length
+        message = (msg[: msg_len]).decode('utf-8')
+        hmac.update(message.encode('ascii'))
         str_hmac = hmac.hexdigest()
-        str_msg =  msg[-(length+1):len(msg)-1].decode('ascii')
+        str_msg =  msg[len(message):len(msg)].decode('ascii')
         return str_hmac == str_msg
 
     def hmac_remove(self, msg):
         # Remove the HMAC appended to the end of the message
         length = len(self.shared_hash)
-        return str(msg[:-(length+1)]) + "'"
+        return str(msg[:-(length)])
 
     # Decryption function used to decrypt incoming msg. 
     # The msg is first decoded from base64 into the AES cipher value
@@ -121,10 +122,10 @@ class StealthConn(object):
     def decrypt(self, data):
         data = base64.b64decode(data)
 
-        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16:] , AES.MODE_CBC , self.shared_hash[:16] )
+        self.cipher = AES.new(self.shared_hash[len(self.shared_hash) -16 :].encode() , AES.MODE_CBC , self.shared_hash[:16].encode() )
         decrypted_data = self.cipher.decrypt(data)
 
-        unpadded_data = self.unpad(decrypted_data)
+        unpadded_data = unpad(decrypted_data,self.cipher.block_size)
         return unpadded_data
 
     def close(self):
